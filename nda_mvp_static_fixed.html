@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NDA — Never Drink Alone (Static MVP • Fixed)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  :root{ --bg:#0f0f10; --card:#17181b; --text:#f5f6f7; --muted:#a9adb3; --accent:#ff7a59; --accent2:#ffb703; --chip:#23252a; --ok:#22c55e; }
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:linear-gradient(180deg,#1c1e22,transparent)}
+  .brand{display:flex;gap:10px;align-items:center}
+  .logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#ff7a59,#ffb703);display:grid;place-items:center;color:#111;font-weight:800}
+  h1{font-size:16px;margin:0}
+  .btn{background:var(--accent);color:#111;padding:10px 14px;border-radius:10px;border:none;font-weight:700;cursor:pointer}
+  .btn.secondary{background:#2b2f36;color:var(--text)}
+  .wrap{display:grid;grid-template-columns:380px 1fr;gap:10px; height:calc(100vh - 60px);}
+  @media(max-width:900px){ .wrap{grid-template-columns:1fr; height:auto} #map{height:52vh} }
+  aside{padding:12px;overflow:auto}
+  .card{background:var(--card);border:1px solid #22262c;border-radius:14px;padding:12px;margin-bottom:10px}
+  .row{display:flex;align-items:center;gap:10px}
+  .avatar{width:42px;height:42px;border-radius:12px;background:#30343b;display:grid;place-items:center;font-weight:800}
+  .title{font-weight:800} .muted{color:var(--muted);font-size:13px}
+  #map{height:calc(100vh - 90px);border-top:1px solid #22262c}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px}
+  .chip{background:var(--chip);padding:8px 10px;border-radius:999px;font-weight:600;cursor:pointer;border:1px solid #23262c}
+  .chip.active{background:var(--accent);color:#111;border-color:#ff9d7f}
+  .status{display:inline-flex;align-items:center;gap:6px;background:#1e2228;border:1px solid #28303a;padding:6px 10px;border-radius:999px}
+  .green{color:var(--ok)} .footer-note{color:#7f8790;font-size:12px;margin-top:8px}
+  dialog{border:none;border-radius:16px;background:#141517;color:var(--text);max-width:520px;width:calc(100% - 24px)}
+  dialog::backdrop{background:rgba(0,0,0,.65)}
+  .field{display:grid;gap:6px;margin:10px 0}
+  input,select,textarea{background:#1b1d21;border:1px solid #282c33;color:#f5f6f7;padding:10px;border-radius:10px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tiny{font-size:12px;color:#9aa0a6}
+  /* Welcome screen (fixed) */
+  #welcome{
+    position:fixed; inset:0; display:grid; place-items:center;
+    background:radial-gradient(1200px 600px at 20% 0%, rgba(255,122,89,.08), transparent), #0f0f10;
+    z-index:100000; pointer-events:auto;
+  }
+  /* Blochează harta cât timp overlay-ul e activ */
+  body.overlay-on #map{ pointer-events:none; }
+  .wcard{max-width:720px;padding:28px;border-radius:18px;background:#141517;border:1px solid #24272d;box-shadow:0 20px 80px rgba(0,0,0,.35)}
+  .wtitle{font-size:28px;font-weight:900;margin:0 0 6px}
+  .wsub{font-size:16px;color:#a9adb3;margin-bottom:14px}
+  .wbul{display:grid;gap:8px;margin:12px 0 18px}
+  .wbul div{display:flex;gap:10px;align-items:flex-start}
+</style>
+</head>
+<body class="overlay-on">
+<header>
+  <div class="brand">
+    <div class="logo">N</div>
+    <div>
+      <h1>Never Drink Alone</h1>
+      <div class="tiny">Aplicația care te scoate din singurătate. La un pahar de vorbă.</div>
+    </div>
+  </div>
+  <div>
+    <button class="btn secondary" id="btnEdit">Profil</button>
+    <button class="btn" id="btnOpen">Deschide o masă</button>
+  </div>
+</header>
+
+<div id="welcome">
+  <div class="wcard">
+    <div class="row" style="gap:12px">
+      <div class="logo" style="width:44px;height:44px">N</div>
+      <div>
+        <div class="wtitle">Găsește oameni ca tine, aproape de tine.</div>
+        <div class="wsub">Never Drink Alone te conectează instant cu oameni care beau ce bei și tu — oriunde, oricând.</div>
+      </div>
+    </div>
+    <div class="wbul">
+      <div>🗺️ <div><b>Vezi harta socială</b><br/>Cine e disponibil acum, în apropiere.</div></div>
+      <div>🍷 <div><b>Alege băutura</b><br/>Filtrează pe bere, vin, cafea, ceai sau cocktail.</div></div>
+      <div>💬 <div><b>Conectează-te rapid</b><br/>Trimite mesaj sau deschide o masă.</div></div>
+    </div>
+    <div class="two">
+      <button class="btn" id="btnStart">Intră în aplicație</button>
+      <button class="btn secondary" id="btnSetProfile">Setează-ți profilul</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <aside>
+    <div class="card">
+      <div class="row">
+        <div class="avatar" id="meAvatar">🙂</div>
+        <div style="flex:1">
+          <div class="title" id="meName">Invitat</div>
+          <div class="muted" id="meDrink">Fără băutură selectată</div>
+          <div class="status" title="Disponibilitate">
+            <span class="green">●</span><span id="meStatus">Disponibil acum</span>
+          </div>
+        </div>
+      </div>
+      <div class="chips" id="chips"></div>
+    </div>
+
+    <div id="list"></div>
+    <div class="footer-note">Tip: apasă pe un marker sau pe un card pentru detalii și mesaj.</div>
+  </aside>
+  <div id="map"></div>
+</div>
+
+<!-- Dialog profil -->
+<dialog id="dlgProfile">
+  <form method="dialog">
+    <h3>Setează-ți profilul</h3>
+    <div class="field"><label>Nume</label><input id="inName" placeholder="Numele tău"></div>
+    <div class="two">
+      <div class="field"><label>Băutura</label>
+        <select id="inDrink">
+          <option value="">Alege...</option>
+          <optgroup label="🍺 Bere">
+            <option>Lager</option><option>Pilsner</option><option>IPA</option><option>Stout</option>
+          </optgroup>
+          <optgroup label="🍷 Vin">
+            <option>Alb</option><option>Roșu</option><option>Rose</option><option>Spumant</option>
+          </optgroup>
+          <optgroup label="🍹 Cocktail">
+            <option>Mojito</option><option>Margarita</option><option>Aperol Spritz</option>
+          </optgroup>
+          <optgroup label="☕ Cafea / Ceai">
+            <option>Espresso</option><option>Cappuccino</option><option>Latte</option><option>Ceai verde</option>
+          </optgroup>
+          <optgroup label="🥤 Nealcoolice">
+            <option>Limonadă</option><option>Apă minerală</option><option>Suc natural</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="field"><label>Status</label>
+        <select id="inStatus">
+          <option>Hai la un pahar! 🍻</option>
+          <option>Cafea de urgență ☕</option>
+          <option>Vin la pahar, discuții 🍷</option>
+          <option>Sunt prin zonă 📍</option>
+          <option>Numai energie bună ✨</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Poziția ta</label>
+      <button type="button" class="btn secondary" id="btnLocate">Preia locația</button>
+      <div class="tiny" id="locInfo">Nesetat</div>
+    </div>
+    <div class="row" style="justify-content:flex-end;gap:8px;margin-top:8px">
+      <button class="btn secondary" value="cancel">Renunță</button>
+      <button class="btn" id="saveProfile">Salvează</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Dialog masa deschisă -->
+<dialog id="dlgTable">
+  <form method="dialog">
+    <h3>Deschide o masă</h3>
+    <div class="two">
+      <div class="field"><label>Locație (nume loc)</label><input id="tablePlace" placeholder="Ex: Bistro X"></div>
+      <div class="field"><label>Ora (aprox)</label><input id="tableTime" type="time"></div>
+    </div>
+    <div class="field"><label>Mesaj scurt</label><input id="tableMsg" placeholder="Ex: 2 locuri libere la terasă"></div>
+    <div class="row" style="justify-content:flex-end;gap:8px;margin-top:8px">
+      <button class="btn secondary" value="cancel">Renunță</button>
+      <button class="btn" id="saveTable">Publică</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(() => {
+  const $ = sel => document.querySelector(sel);
+  const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+  // --- Demo users (static) ---
+  const DEMO_USERS = [
+    {id:'u1',name:'Andrei',drink:'Espresso',status:'Cafea de urgență ☕',lat:46.772,lng:23.623},
+    {id:'u2',name:'Ioana',drink:'Roșu',status:'Vin la pahar, discuții 🍷',lat:46.773,lng:23.602},
+    {id:'u3',name:'Vlad',drink:'IPA',status:'Hai la un pahar! 🍻',lat:46.769,lng:23.593},
+    {id:'u4',name:'Maria',drink:'Ceai verde',status:'Sunt prin zonă 📍',lat:46.771,lng:23.610},
+    {id:'u5',name:'Radu',drink:'Mojito',status:'Numai energie bună ✨',lat:46.775,lng:23.615},
+    {id:'u6',name:'Elena',drink:'Lager',status:'Pe terasă la soare ☀️',lat:44.426,lng:26.102},
+    {id:'u7',name:'Cristina',drink:'Cappuccino',status:'Pauză de 20 de minute',lat:45.657,lng:25.601},
+    {id:'u8',name:'Dan',drink:'Stout',status:'Povești bune la pub',lat:45.748,lng:21.208}
+  ];
+
+  // --- State ---
+  const state = {
+    me: JSON.parse(localStorage.getItem('nda_me_static') || 'null') || {id:'me',name:'Invitat',drink:'',status:'Disponibil acum',lat:null,lng:null},
+    users: DEMO_USERS,
+    tables: JSON.parse(localStorage.getItem('nda_tables_static') || '[]'),
+    filter: 'Toate'
+  };
+
+  // Welcome overlay handlers (+ remove overlay class)
+  const btnStart = document.getElementById('btnStart');
+  const btnSetProfile = document.getElementById('btnSetProfile');
+  btnStart.onclick = () => {
+    document.getElementById('welcome').style.display='none';
+    document.body.classList.remove('overlay-on');
+  };
+  btnSetProfile.onclick = () => {
+    document.getElementById('welcome').style.display='none';
+    document.body.classList.remove('overlay-on');
+    dlgProfile.showModal();
+  };
+
+  // UI Bind
+  const dlgProfile = $('#dlgProfile');
+  const dlgTable = $('#dlgTable');
+  $('#btnEdit').onclick = () => dlgProfile.showModal();
+  $('#btnOpen').onclick = () => dlgTable.showModal();
+
+  // Badge
+  const refreshMeBadge = () => {
+    $('#meName').textContent = state.me.name || 'Invitat';
+    $('#meDrink').textContent = state.me.drink ? ('Preferă: ' + state.me.drink) : 'Fără băutură selectată';
+    $('#meStatus').textContent = state.me.status || 'Disponibil acum';
+    $('#locInfo').textContent = (state.me.lat && state.me.lng) ? `${state.me.lat.toFixed(4)}, ${state.me.lng.toFixed(4)}` : 'Nesetat';
+  }
+  refreshMeBadge();
+
+  // Filter chips
+  const drinks = ['Toate','Bere','Alb','Roșu','Rose','Spumant','IPA','Pilsner','Stout','Espresso','Cappuccino','Latte','Ceai verde','Mojito','Margarita','Aperol Spritz','Limonadă','Apă minerală','Suc natural'];
+  const chips = $('#chips');
+  chips.innerHTML = drinks.map(d => `<div class="chip${d==='Toate'?' active':''}" data-v="${d}">${d}</div>`).join('');
+  chips.addEventListener('click', e => {
+    const c = e.target.closest('.chip'); if(!c) return;
+    $$('.chip').forEach(x=>x.classList.remove('active')); c.classList.add('active');
+    state.filter = c.dataset.v; render();
+  });
+
+  // Map
+  const map = L.map('map', {zoomControl:false});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '&copy; OpenStreetMap'}).addTo(map);
+  map.setView([46.772, 23.623], 13);
+  L.control.zoom({ position:'bottomright' }).addTo(map);
+  const markers = new Map();
+  function upsertMarker(u, isTable=false){
+    if(!(u.lat && u.lng)) return;
+    const key = (isTable?'t:':'u:')+u.id;
+    if(markers.has(key)){ markers.get(key).setLatLng([u.lat,u.lng]); return; }
+    const icon = L.divIcon({
+      className:'x',
+      html:`<div style="transform:translate(-50%,-50%);">
+              <div style="background:${isTable?'#ffb703':'#ff7a59'};color:#111;padding:6px 10px;border-radius:999px;font-weight:800;box-shadow:0 6px 16px rgba(0,0,0,.35)">${isTable?'★ Masa':'● '+(u.drink||'')}</div>
+            </div>`
+    });
+    const m = L.marker([u.lat,u.lng], {icon}).addTo(map).on('click', () => openCard(u, isTable));
+    markers.set(key, m);
+  }
+  function clearMarkers(){ markers.forEach(m=>map.removeLayer(m)); markers.clear(); }
+
+  function render(){
+    clearMarkers();
+    const list = $('#list');
+    let all = [...state.users];
+    if(state.filter && state.filter!=='Toate'){
+      const f = state.filter.toLowerCase();
+      all = all.filter(u => (u.drink||'').toLowerCase().includes(f));
+    }
+    list.innerHTML = all.map(u => cardHTML(u)).join('');
+    all.forEach(u => upsertMarker(u));
+    state.tables.forEach(t => upsertMarker(t, true));
+    if(state.me.lat && state.me.lng) map.setView([state.me.lat, state.me.lng], 14);
+  }
+
+  function cardHTML(u){
+    return `<div class="card" data-id="${u.id}">
+      <div class="row">
+        <div class="avatar">${(u.name||'?').slice(0,2).toUpperCase()}</div>
+        <div style="flex:1">
+          <div class="title">${u.name||'Anonim'}</div>
+          <div class="muted">${(u.drink||'—')} • ${(u.status||'')}</div>
+        </div>
+        <button class="btn secondary" onclick="alert('Demo static — chatul real apare în varianta cu backend')">Mesaj</button>
+      </div>
+    </div>`;
+  }
+
+  function openCard(u,isTable=false){
+    if(isTable){
+      alert(`Masa deschisă de ${u.host||'cineva'} @ ${u.place||''}\n${u.msg||''}`);
+    } else {
+      alert(`${u.name}\n${u.drink||''} • ${u.status||''}`);
+    }
+  }
+
+  // Profile save & geolocation
+  $('#btnLocate').onclick = () => {
+    if(!navigator.geolocation){ $('#locInfo').textContent = 'Geolocație indisponibilă'; return; }
+    navigator.geolocation.getCurrentPosition(pos => {
+      state.me.lat = pos.coords.latitude;
+      state.me.lng = pos.coords.longitude;
+      localStorage.setItem('nda_me_static', JSON.stringify(state.me));
+      $('#locInfo').textContent = `${state.me.lat.toFixed(4)}, ${state.me.lng.toFixed(4)}`;
+      map.setView([state.me.lat, state.me.lng], 14);
+      render();
+    }, err => { $('#locInfo').textContent = 'Permisiune respinsă'; });
+  };
+
+  $('#saveProfile').onclick = (e) => {
+    e.preventDefault();
+    state.me.name = $('#inName').value || 'Invitat';
+    state.me.drink = $('#inDrink').value || '';
+    state.me.status = $('#inStatus').value || 'Disponibil acum';
+    localStorage.setItem('nda_me_static', JSON.stringify(state.me));
+    refreshMeBadge();
+    dlgProfile.close();
+    render();
+  };
+
+  // Open table (static)
+  $('#saveTable').onclick = (e) => {
+    e.preventDefault();
+    if(!(state.me.lat && state.me.lng)){ alert('Setează-ți locația din Profil.'); return; }
+    const t = {
+      id:'t'+Date.now(),
+      host: state.me.name || 'Anonim',
+      msg: $('#tableMsg').value || '',
+      place: $('#tablePlace').value || '',
+      time: $('#tableTime').value || '',
+      lat: state.me.lat, lng: state.me.lng
+    };
+    state.tables.push(t);
+    localStorage.setItem('nda_tables_static', JSON.stringify(state.tables));
+    dlgTable.close(); render();
+  };
+
+  // Prefill profile dialog
+  $('#inName').value = state.me.name || '';
+  $('#inDrink').value = state.me.drink || '';
+  $('#inStatus').value = state.me.status || '';
+
+  // First paint
+  render();
+})();
+</script>
+</body>
+</html>
